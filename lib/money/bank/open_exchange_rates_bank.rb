@@ -138,6 +138,12 @@ class Money
         @rates_timestamp = Time.at(at)
       end
 
+      def initialize
+        super
+        @fetch_bid_ask_rates = true # Default to not fetching bid/ask unless explicitly enabled
+        @symbols = []
+      end
+
       # Current rates timestamp
       #
       # @return [Time]
@@ -215,11 +221,7 @@ class Money
         end
       end
 
-      def initialize
-        super
-        @fetch_bid_ask_rates = true # Default to not fetching bid/ask unless explicitly enabled
-        @symbols = []
-      end
+ 
 
       # Alias super method
       alias super_get_rate get_rate
