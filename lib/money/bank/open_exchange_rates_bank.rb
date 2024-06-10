@@ -217,7 +217,7 @@ class Money
 
       def initialize
         super
-        @fetch_bid_ask_rates = false # Default to not fetching bid/ask unless explicitly enabled
+        @fetch_bid_ask_rates = true # Default to not fetching bid/ask unless explicitly enabled
         @symbols = []
       end
 
