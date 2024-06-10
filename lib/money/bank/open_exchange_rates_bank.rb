@@ -56,6 +56,12 @@ class Money
       # @return [String] token to access OXR API
       attr_accessor :app_id
 
+      def initialize
+        super
+        @fetch_bid_ask_rates = false # Default to not fetching bid/ask unless explicitly enabled
+        @symbols = []
+      end
+
       # Cache accessor
       #
       # @example
@@ -138,12 +144,6 @@ class Money
         @rates_timestamp = Time.at(at)
       end
 
-      def initialize
-        super
-        @fetch_bid_ask_rates = true # Default to not fetching bid/ask unless explicitly enabled
-        @symbols = []
-      end
-
       # Current rates timestamp
       #
       # @return [Time]
@@ -220,8 +220,6 @@ class Money
           end
         end
       end
-
- 
 
       # Alias super method
       alias super_get_rate get_rate
