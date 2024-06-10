@@ -19,9 +19,10 @@ begin
   oxr = Money::Bank::OpenExchangeRatesBank.new
   oxr.cache = cache_path
   oxr.app_id = app_id
+  oxr.fetch_bid_ask_rates = true
+
   oxr.update_rates
   oxr.save_rates
-
   Money.default_bank = oxr
 
   cad_rate = Money.default_bank.get_rate('USD', to_currency)
