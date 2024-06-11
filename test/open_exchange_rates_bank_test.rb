@@ -561,7 +561,6 @@ describe Money::Bank::OpenExchangeRatesBank do
       subject.fetch_bid_ask_rates = true
       subject.cache = nil
 
-      # Correctly stub the specific request that includes bid and ask rates
       stub_request(:get, 'https://openexchangerates.org/api/latest.json')
         .with(query: hash_including({
                                       'app_id' => 'valid_app_id',
@@ -580,7 +579,6 @@ describe Money::Bank::OpenExchangeRatesBank do
                                                       'timestamp' => Time.now.to_i
                                                     }), headers: {})
 
-      # Optionally, stub the response for the default request without bid/ask
       stub_request(:get, 'https://openexchangerates.org/api/latest.json')
         .with(query: hash_including({
                                       'app_id' => 'valid_app_id',
