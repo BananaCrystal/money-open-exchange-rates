@@ -195,31 +195,42 @@ class Money
       # Update all rates from openexchangerates JSON
       #
       # @return [Array] Array of exchange rates
-      def update_rates # rubocop:disable Metrics/PerceivedComplexity, Lint/RedundantCopDisableDirective
+      def update_rates
         store.transaction do
-          clear_rates!
-          exchange_rates.each do |exchange_rate|
-            currency = exchange_rate.first
-            details = exchange_rate.last
-            # Skip the currency if it's not recognized by the Money gem
+          clear_rates!  # Clear existing rates before updating
+          exchange_rates.each do |currency, details|
+            # Ensure the currency is recognized by the Money gem
             next unless Money::Currency.find(currency)
 
+            # Extract and set the standard rate
             if details.is_a?(Hash)
               rate = details['rate'] || details['mid']
-              rate = rate.to_f if rate
-              bid = details['bid'].to_f if fetch_bid_ask_rates && details['bid']
-              ask = details['ask'].to_f if fetch_bid_ask_rates && details['ask']
+              set_rate(source, currency, rate.to_f) if rate
+
+              # Handling bid and ask rates
+              if fetch_bid_ask_rates && details['bid'] && details['ask']
+                bid = details['bid'].to_f
+                ask = details['ask'].to_f
+                set_bid_ask_rates(currency, bid, ask)
+              end
             elsif details.is_a?(Numeric)
-              rate = details.to_f
-            else
-              next
+              set_rate(source, currency, details.to_f)
             end
-            set_rate(source, currency, rate) if rate
-            set_rate(currency, source, 1.0 / rate) if rate != 0
-            set_bid_ask_rates(currency, bid, ask) if fetch_bid_ask_rates && bid && ask
+
+            # Setting inverse rates might not be necessary if the library handles this internally,
+            # but if it doesn't, here's how you could do it:
+            if rate && rate != 0
+              inverse_rate = 1.0 / rate.to_f
+              set_rate(currency, source, inverse_rate)
+            end
           end
         end
+      rescue => e
+        # It's a good practice to handle exceptions that might occur during the API call or rate processing
+        logger.error "Failed to update rates: #{e.message}"
+        raise
       end
+
 
       # Alias super method
       alias super_get_rate get_rate
@@ -232,17 +243,22 @@ class Money
       # @return [Numeric] rate.
       # Override to include options for fetching bid and ask rates
       # Assuming the existence of a method to get direct rates, let's define or refine it to handle cross rates:
-      def get_rate(from_currency, to_currency, _opts = {})
-        # First, try to get the direct rate
-        direct_rate = super_get_rate(from_currency, to_currency)
-        return direct_rate if direct_rate
+      def get_rate(from_currency, to_currency, opts = {})
+      rate_type = opts[:rate_type] || :standard
+      key = "#{from_currency}_to_#{to_currency}"
 
-        # If the direct rate isn't available, calculate the cross rate via USD
-        return calculate_cross_rate(from_currency, to_currency) unless from_currency == 'USD' || to_currency == 'USD'
-
-        # Raise an error if no rate can be determined
-        raise Money::Bank::NoRateError, "No rate available for #{from_currency} to #{to_currency}"
+      case rate_type
+      when :standard
+        super_get_rate(from_currency, to_currency)
+      when :bid
+        @bid_rates[key]
+      when :ask
+        @ask_rates[key]
+      else
+        raise Money::Bank::NoRateError, "No rate type #{rate_type} available for #{from_currency} to #{to_currency}"
       end
+    end
+
 
       # Helper method to calculate cross rates via USD
       def calculate_cross_rate(from_currency, to_currency)
