@@ -133,10 +133,12 @@ class Money
 
 
 
+
       def initialize
         super
         @bid_rates = {}
         @ask_rates = {}
+       @show_alternative = ENV['SHOW_ALTERNATIVE'].to_s.downcase == 'true'
       end
 
       def set_bid_ask(from_currency, to_currency, bid, ask)
