@@ -90,6 +90,9 @@ class Money
       # @return [Hash] All rates as Hash
       attr_reader :oer_rates
 
+
+      attr_accessor :bid_rates, :ask_rates
+
       # Unparsed OpenExchangeRates response as String
       #
       # @return [String] OpenExchangeRates json response
@@ -126,6 +129,28 @@ class Money
       # @param [Boolean] Set to false to receive minified (default: true)
       # @return [Boolean]
       attr_writer :prettyprint
+
+
+
+
+      def initialize
+        super
+        @bid_rates = {}
+        @ask_rates = {}
+      end
+
+      def set_bid_ask(from_currency, to_currency, bid, ask)
+        @bid_rates[[from_currency, to_currency]] = bid
+        @ask_rates[[from_currency, to_currency]] = ask
+      end
+
+      def get_bid(from_currency, to_currency)
+        @bid_rates[[from_currency, to_currency]]
+      end
+
+      def get_ask(from_currency, to_currency)
+        @ask_rates[[from_currency, to_currency]]
+      end
 
       # Set current rates timestamp
       #
@@ -201,6 +226,7 @@ class Money
           end
         end
       end
+
 
 
 
@@ -392,9 +418,14 @@ class Money
 
         self.rates_timestamp = doc['timestamp']
         doc['rates'].transform_values do |details|
-          { 'bid' => details['bid'], 'ask' => details['ask'], 'mid' => details['mid'] }
+          if details.is_a?(Hash)
+            { 'bid' => details['bid'], 'ask' => details['ask'], 'mid' => details['mid'] }
+          else
+            { 'bid' => details, 'ask' => details, 'mid' => details } # treat the single float as all rates
+          end
         end
       end
+
 
       # Refresh expiration from now
       #
@@ -447,18 +478,6 @@ class Money
           add_rate(iso_from, iso_to, nil)
         end
       end
-      def set_bid_ask(from_currency, to_currency, bid, ask)
-        store.set_rate(from_currency, "#{to_currency}_bid", bid)
-        store.set_rate(from_currency, "#{to_currency}_ask", ask)
-      end
-      def get_bid(from_currency, to_currency)
-        store.get_rate(from_currency, "#{to_currency}_bid")
-      end
-
-      def get_ask(from_currency, to_currency)
-        store.get_rate(from_currency, "#{to_currency}_ask")
-      end
-
     end
   end
 end
