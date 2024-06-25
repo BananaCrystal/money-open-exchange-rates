@@ -1,3 +1,4 @@
+# rubocop:disable Style/StringLiterals, Layout/IndentFirstHashElement
 # frozen_string_literal: true
 
 require File.expand_path(File.join(File.dirname(__FILE__), 'test_helper'))
@@ -60,6 +61,17 @@ describe Money::Bank::OpenExchangeRatesBank do
                                                       USD: 1.0,
                                                       EUR: { 'rate' => 0.655, 'bid' => 0.650, 'ask' => 0.660 },
                                                       CHF: { 'rate' => 0.88, 'bid' => 0.875, 'ask' => 0.885 }
+                                                    },
+                                                    timestamp: Time.now.to_i
+                                                  }), headers: {})
+
+                                                  stub_request(:get, "https://openexchangerates.org/api/latest.json?app_id=valid_app_id&prettyprint=true&show_alternative=false") # rubocop:disable Layout/IndentationConsistency
+                                                  .to_return(status: 200, body: JSON.generate({ # rubocop:disable Layout/MultilineMethodCallIndentation
+                                                    rates: { # rubocop:disable Layout/IndentFirstHashElement
+                                                      USD: { 'rate' => 1.0 },
+                                                      EUR: { 'rate' => 0.89 },
+                                                      GBP: { 'rate' => 0.75 },
+                                                      CHF: { 'rate' => 0.92 }
                                                     },
                                                     timestamp: Time.now.to_i
                                                   }), headers: {})
@@ -135,6 +147,32 @@ describe Money::Bank::OpenExchangeRatesBank do
       subject.app_id = TEST_APP_ID
       subject.cache = oer_latest_path
       subject.update_rates
+    end
+
+    describe 'Fetching Bid and Ask Rates' do
+      before do
+        subject.app_id = 'valid_app_id'
+        subject.fetch_bid_ask_rates = true
+        subject.cache = nil
+
+        # Correctly stub the specific request that includes bid and ask rates
+        stub_request(:get, "https://openexchangerates.org/api/latest.json?app_id=#{subject.app_id}&base=USD&show_bid_ask=1")
+          .to_return(status: 200, body: JSON.generate({
+            'rates' => {
+              'USD' => { 'rate' => 1.0 },
+              'EUR' => { 'rate' => 0.9, 'bid' => 0.89, 'ask' => 0.91 },
+              'BBD' => { 'rate' => 2.0 },
+              'TJS' => { 'rate' => 5.0 },
+              'BMD' => { 'rate' => 0.5 }
+            },
+            'timestamp' => Time.now.to_i
+          }), headers: {})
+      end
+
+      it 'raises NoRateError if bid or ask rate is requested but not available' do
+        subject.update_rates
+        _(proc { subject.get_rate('USD', 'BBD', rate_type: :bid) }).must_raise Money::Bank::NoRateError
+      end
     end
 
     it 'raises AccessRestricted error when restricted by oer' do
@@ -602,3 +640,5 @@ describe Money::Bank::OpenExchangeRatesBank do
     end
   end
 end
+
+# rubocop:enable Style/StringLiterals, Layout/IndentFirstHashElement
